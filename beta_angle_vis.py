@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider,Button
 
 #53768 is beavercube. NPP is 37849
-tle = load_tle.get_tle(37849)
+tle = load_tle.get_tle(53768)
 year = 2022
 start_day = 180
 
@@ -68,8 +68,17 @@ def date_update(new_date):
     south_pole = wgs84.latlon(-90,0).itrs_xyz.km
     north_pole =np.dot(transformation_matrix,north_pole)
     south_pole =np.dot(transformation_matrix,south_pole)
-    earth_axis.set_xdata([north_pole[2],south_pole[2]])
-    earth_axis.set_ydata([north_pole[1],south_pole[1]])
+    earth_axis_upper.set_xdata([north_pole[2],0])
+    earth_axis_lower.set_xdata([south_pole[2],0])
+    earth_axis_upper.set_ydata([north_pole[1],0])
+    earth_axis_lower.set_ydata([south_pole[1],0])
+    #if north pole is forward
+    if north_pole[0] < 0:
+        earth_axis_upper.set_zorder(0.9)
+        earth_axis_lower.set_zorder(0.1)
+    else:
+        earth_axis_upper.set_zorder(0.1)
+        earth_axis_lower.set_zorder(0.9)
 
     #Now convert sat position into these coordinates. Run for one period.
     sat_state = sat.at(t)
@@ -94,7 +103,8 @@ def date_update(new_date):
     
 earth_circle = plt.Circle((0,0),radius=6371,color='blue',zorder=0.4,alpha=0.8)
 ax.add_patch(earth_circle)
-earth_axis, = ax.plot([],[],linewidth=2,zorder=0.7,color='orange')
+earth_axis_upper, = ax.plot([],[],linewidth=2,color='orange')
+earth_axis_lower, = ax.plot([],[],linewidth=2,color='orange')
 back_scatter = ax.scatter([],[],color='red',zorder=0.5)
 front_scatter = ax.scatter([],[],color='black',zorder=0.2)
 date_slider.on_changed(date_update)
