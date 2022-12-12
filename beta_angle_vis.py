@@ -5,7 +5,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider,Button
 
-tle = load_tle.get_tle(53768)
+#53768 is beavercube. NPP is 37849
+tle = load_tle.get_tle(37849)
 year = 2022
 start_day = 180
 
@@ -16,8 +17,6 @@ ts = load.timescale()
 
 #Plot the data. Points in front of earth show in black, points behind in red (like in finances)
 fig,ax = plt.subplots()
-earth_circle = plt.Circle((0,0),radius=6371,color='blue',zorder=0.4,alpha=0.8)
-ax.add_patch(earth_circle)
 plt.subplots_adjust(bottom=0.25)
 
 date_slider = Slider(
@@ -75,7 +74,7 @@ def date_update(new_date):
     #Now convert sat position into these coordinates. Run for one period.
     sat_state = sat.at(t)
     sat_period_minutes = osculating_elements_of(sat_state).period_in_days*1440
-    one_period = ts.utc(*date_of_interest,0,range(int(sat_period_minutes)))
+    one_period = ts.utc(*date_of_interest,0,range(int(sat_period_minutes)+1))
     #This gets 92 x values, 92 y values, and 92 z values. I want 92 positions.
     satpos = sat.at(one_period).position.km
     #This zip operation fixes that
@@ -92,6 +91,9 @@ def date_update(new_date):
     back_scatter.set_offsets(new_backs)
     front_scatter.set_offsets(new_fronts)
     fig.canvas.draw_idle()
+    
+earth_circle = plt.Circle((0,0),radius=6371,color='blue',zorder=0.4,alpha=0.8)
+ax.add_patch(earth_circle)
 earth_axis, = ax.plot([],[],linewidth=2,zorder=0.7,color='orange')
 back_scatter = ax.scatter([],[],color='red',zorder=0.5)
 front_scatter = ax.scatter([],[],color='black',zorder=0.2)
