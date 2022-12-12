@@ -16,7 +16,7 @@ ts = load.timescale()
 
 #Plot the data. Points in front of earth show in black, points behind in red (like in finances)
 fig,ax = plt.subplots()
-earth_circle = plt.Circle((0,0),radius=6371,color='blue')
+earth_circle = plt.Circle((0,0),radius=6371,color='blue',zorder=0.4,alpha=0.8)
 ax.add_patch(earth_circle)
 plt.subplots_adjust(bottom=0.25)
 
@@ -75,7 +75,7 @@ def date_update(new_date):
     #Now convert sat position into these coordinates. Run for one period.
     sat_state = sat.at(t)
     sat_period_minutes = osculating_elements_of(sat_state).period_in_days*1440
-    one_period = ts.utc(*date_of_interest,0,range(int(sat_period_minutes)+5))
+    one_period = ts.utc(*date_of_interest,0,range(int(sat_period_minutes)))
     #This gets 92 x values, 92 y values, and 92 z values. I want 92 positions.
     satpos = sat.at(one_period).position.km
     #This zip operation fixes that
@@ -92,9 +92,9 @@ def date_update(new_date):
     back_scatter.set_offsets(new_backs)
     front_scatter.set_offsets(new_fronts)
     fig.canvas.draw_idle()
-earth_axis, = ax.plot([],[],linewidth=2)
-back_scatter = ax.scatter([],[],color='red')
-front_scatter = ax.scatter([],[],color='black')
+earth_axis, = ax.plot([],[],linewidth=2,zorder=0.7,color='orange')
+back_scatter = ax.scatter([],[],color='red',zorder=0.5)
+front_scatter = ax.scatter([],[],color='black',zorder=0.2)
 date_slider.on_changed(date_update)
 ax.axis('equal')
 date_update(start_day)
