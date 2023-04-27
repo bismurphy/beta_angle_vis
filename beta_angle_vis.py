@@ -5,19 +5,29 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider,Button
 
-#53768 is beavercube. NPP is 37849
+#53768 is beavercube. NPP is 37849. GOES-18 is 51850. TESS is 43435
 tle = load_tle.get_tle(53768)
-year = 2022
-start_day = 180
+ts = load.timescale()
+#Automatically load up today.
+this_year,today_day_of_year=[int(x) for x in (ts.now().utc_strftime("%Y,%-j")).split(",")]
+#If you'd like to run with a different day, that option is here
+year = this_year
+start_day = today_day_of_year
 
 sat = EarthSatellite(*tle)
 eph = load('de421.bsp')
 earth,sun = eph['earth'], eph['sun']
-ts = load.timescale()
 
 #Plot the data. Points in front of earth show in black, points behind in red (like in finances)
 fig,ax = plt.subplots()
+required_plot_size = osculating_elements_of(sat.at(ts.utc(year,1,start_day))).apoapsis_distance.km
+required_plot_size *= 1.2
+ax.set_xlim([-required_plot_size,required_plot_size])
+ax.set_ylim([-required_plot_size,required_plot_size])
+
+ax.set_aspect('equal')
 plt.subplots_adjust(bottom=0.25)
+
 
 date_slider = Slider(
     ax = plt.axes([0.2, 0.1, 0.6, 0.03]),
@@ -74,12 +84,39 @@ def date_update(new_date):
     earth_axis_lower.set_ydata([south_pole[1],0])
     #if north pole is forward
     if north_pole[0] < 0:
-        earth_axis_upper.set_zorder(0.9)
-        earth_axis_lower.set_zorder(0.1)
+        earth_axis_upper.set_zorder(0.7)
+        earth_axis_lower.set_zorder(0.3)
     else:
-        earth_axis_upper.set_zorder(0.1)
-        earth_axis_lower.set_zorder(0.9)
-
+        earth_axis_upper.set_zorder(0.3)
+        earth_axis_lower.set_zorder(0.7)
+    #Generate an equator. At spring/fall, it's a diagonal line. At summer/winter, it's an ellipse that goes up and down by a bit
+    #This is how much the axis tilts to the left from vertical (convention is counter clockwise angle is positive)
+    visible_axial_tilt = -np.arctan2(north_pole[2],north_pole[1])
+    #This is how much the axis tilts away from the camera (on the north pole end)
+    axial_tilt_away = np.arctan2(*north_pole[:2])
+    #Use these to make a transformation of a circle. start with a set of points for the circle.
+    front_equator_points = []
+    back_equator_points = []
+    equator_height = np.sin(axial_tilt_away)
+    for angle in np.linspace(0,np.pi*2,90):
+        #Start by drawing a circle around the earth.
+        x_value = 6371*np.cos(angle)
+        y_value = 6371*np.sin(angle)
+        #Squish it down. We calculated height of equator already, so multiply by that.
+        y_value *= equator_height
+        #Rotate by the visible axis tilt
+        x_rot = x_value*np.cos(visible_axial_tilt)-y_value*np.sin(visible_axial_tilt)
+        y_rot = x_value*np.sin(visible_axial_tilt)+y_value*np.cos(visible_axial_tilt)
+        #We have a fun little thing with the fact that equator height can be negative, turns out the front is always drawn by the first half
+        if (angle < np.pi):
+            front_equator_points.append([x_rot,y_rot])
+        else:
+            back_equator_points.append([x_rot,y_rot])
+    front_equator.set_xdata(list(zip(*front_equator_points))[0])
+    front_equator.set_ydata(list(zip(*front_equator_points))[1])
+    back_equator.set_xdata(list(zip(*back_equator_points))[0])
+    back_equator.set_ydata(list(zip(*back_equator_points))[1])
+    #Earth drawing complete.
     #Now convert sat position into these coordinates. Run for one period.
     sat_state = sat.at(t)
     sat_period_minutes = osculating_elements_of(sat_state).period_in_days*1440
@@ -100,14 +137,18 @@ def date_update(new_date):
     back_scatter.set_offsets(new_backs)
     front_scatter.set_offsets(new_fronts)
     fig.canvas.draw_idle()
-    
-earth_circle = plt.Circle((0,0),radius=6371,color='blue',zorder=0.4,alpha=0.8)
+#Reminder: Z order of 0 is in the back, 1 is in the front! Required order, back to front:
+#back scatter (for sat trail), back equator, back axis, earth, front axis, front equator, front scatter
+earth_circle = plt.Circle((0,0),radius=6371,color='lightblue',zorder=0.5,alpha=0.8)
 ax.add_patch(earth_circle)
-earth_axis_upper, = ax.plot([],[],linewidth=2,color='orange')
-earth_axis_lower, = ax.plot([],[],linewidth=2,color='orange')
-back_scatter = ax.scatter([],[],color='red',zorder=0.5)
-front_scatter = ax.scatter([],[],color='black',zorder=0.2)
-date_slider.on_changed(date_update)
-ax.axis('equal')
+#Plot the axis, with a marker on the north pole. Only mark point 0, which is defined on pole.
+earth_axis_upper, = ax.plot([],[],linewidth=2,color='orange',marker='.',markevery=[0],markerfacecolor='yellow')
+earth_axis_lower, = ax.plot([],[],linewidth=2,color='orange',marker='.',markevery=[0],markerfacecolor='yellow')
+front_equator, = ax.plot([],[],linewidth=2,color='green',zorder=0.8)
+back_equator, = ax.plot([],[],linewidth=2,color='green',zorder=0.2)
+back_scatter = ax.scatter([],[],color='black',zorder=0.1)
+front_scatter = ax.scatter([],[],color='red',zorder=0.9)
 date_update(start_day)
+
+date_slider.on_changed(date_update)
 plt.show()
